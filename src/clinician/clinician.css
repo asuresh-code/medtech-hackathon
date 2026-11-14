@@ -441,3 +441,8 @@
   color: var(--urgent);
   margin: 0;
 }
+.c-spark-value {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--ink);
+}

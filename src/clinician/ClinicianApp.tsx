@@ -438,16 +438,23 @@ function Sparkline({ points, baseline }: { points: number[]; baseline: number | 
   return (
     <svg viewBox={`0 0 ${W} ${Hh}`} className="c-spark" role="img" aria-label={`EPDS weekly totals: ${points.join(', ')}`}>
       <line x1="0" x2={W} y1={y(13)} y2={y(13)} className="c-spark-cut" />
-      <text x={W - 4} y={y(13) - 4} textAnchor="end" className="c-spark-label">13</text>
+      <text x="4" y={y(13) - 4} className="c-spark-label">review cut-off 13</text>
       {baseline !== null && (
         <>
           <line x1="0" x2={W} y1={y(baseline)} y2={y(baseline)} className="c-spark-base" />
-          <text x="4" y={y(baseline) - 4} className="c-spark-label">baseline {baseline}</text>
+          <text x="4" y={y(baseline) + 12} className="c-spark-label">her baseline {baseline}</text>
         </>
       )}
       <polyline points={points.map((p, i) => `${x(i)},${y(p)}`).join(' ')} className="c-spark-line" />
       {points.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p)} r="3.5" className="c-spark-dot" />
+        <g key={i}>
+          <circle cx={x(i)} cy={y(p)} r="3.5" className="c-spark-dot" />
+          {i === points.length - 1 && (
+            <text x={x(i)} y={y(p) - 8} textAnchor="end" className="c-spark-value">
+              {p}
+            </text>
+          )}
+        </g>
       ))}
     </svg>
   )
