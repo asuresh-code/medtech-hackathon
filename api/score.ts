@@ -1,11 +1,9 @@
 // POST /api/score { checkin_id, now? } → { ok, next_checkin }
-//
-// >>> STUB written by Dev A so the patient flow works end-to-end. <<<
-// Dev B REPLACES this file: run the deterministic engine (src/engine), write flags + audit_log,
-// and schedule the next check-in with src/engine/schedule.ts. Keep the request/response contract
-// in src/shared/types.ts. The response must NEVER include a flag, score or level (patient-safe).
+// Runs the deterministic engine (src/engine) after each check-in and writes flags + audit_log.
+// The response must NEVER include a flag, score or level (patient-safe).
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import type { ScoreResponse } from '../src/shared/types'
+import type { ScoreResponse } from '../src/shared/types.js'
+import { runEngineFor } from '../src/engine/run.js'
 import { adminClient, callerId } from './_lib/supabaseAdmin.js'
 
 // Stub schedule: 3 rotating groups every 2 days → all 10 items (incl. item 10) within ~6 days.
@@ -29,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .select('id, woman_id, items, women!inner(user_id, usual_hour)')
     .eq('id', checkinId)
     .maybeSingle()
-  const owner = (checkin as unknown as { women?: { user_id: string; usual_hour: number } } | null)?.women
+  const owner = (checkin as unknown as { women?: { user_id: string; usual_hour: number; reminder_hour?: number | null } } | null)?.women
   if (!checkin || owner?.user_id !== uid) return res.status(404).json({ error: 'Not found' })
 
   await admin.from('audit_log').insert({
@@ -40,7 +38,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     detail: null,
   })
 
-  // TODO(Dev B): const flag = evaluate(...); if (flag) insert into flags + audit_log.
+  // Deterministic engine → flags + audit_log (server-side only; never returned).
+  try {
+    await runEngineFor(admin, checkin.woman_id as string, nowIso, null)
+  } catch (e) {
+    console.error('engine failed', e)
+  }
 
   // Schedule next check-in if none pending.
   const { data: pending } = await admin
@@ -58,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const items = GROUPS[(idx + 1) % GROUPS.length]
     const when = new Date(nowIso)
     when.setDate(when.getDate() + 2)
-    when.setHours(owner?.usual_hour ?? 20, 0, 0, 0)
+    when.setHours(owner?.reminder_hour ?? owner?.usual_hour ?? 20, 0, 0, 0)
     const { data: created } = await admin
       .from('checkins')
       .insert({ woman_id: checkin.woman_id, scheduled_for: when.toISOString(), items })
