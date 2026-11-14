@@ -11,19 +11,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Invalid code' })
 
   const admin = adminClient()
-  const { data: invite } = await admin
-    .from('invite_codes')
-    .select('code, woman_id, expires_at, used_at')
-    .eq('code', code)
-    .maybeSingle()
-  if (!invite || invite.used_at || new Date(invite.expires_at) < new Date()) {
-    return res.status(404).json({ error: 'Code expired or already used' })
+
+  // Pitch-only shared code: reusable, never expires, signs everyone in as the same synthetic
+  // patient. Enabled only when DEMO_INVITE_CODE is set; unset it after the event to switch it off.
+  const demoCode = process.env.DEMO_INVITE_CODE
+  const isDemo = Boolean(demoCode && /^\d{6}$/.test(demoCode) && code === demoCode)
+
+  let womanId: string
+  if (isDemo) {
+    const pseudonym = process.env.DEMO_INVITE_PSEUDONYM || 'W-DEV1'
+    const { data: w } = await admin.from('women').select('id').eq('pseudonym', pseudonym).maybeSingle()
+    if (!w) return res.status(404).json({ error: 'Demo patient not found' })
+    womanId = w.id
+  } else {
+    const { data: invite } = await admin
+      .from('invite_codes')
+      .select('code, woman_id, expires_at, used_at')
+      .eq('code', code)
+      .maybeSingle()
+    if (!invite || invite.used_at || new Date(invite.expires_at) < new Date()) {
+      return res.status(404).json({ error: 'Code expired or already used' })
+    }
+    womanId = invite.woman_id
   }
 
   const { data: woman } = await admin
     .from('women')
     .select('id, pseudonym, first_name, user_id')
-    .eq('id', invite.woman_id)
+    .eq('id', womanId)
     .single()
   if (!woman) return res.status(404).json({ error: 'Not found' })
 
@@ -42,14 +57,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await admin
     .from('profiles')
     .upsert({ id: userId, role: 'patient', first_name: woman.first_name }, { onConflict: 'id' })
-  await admin.from('invite_codes').update({ used_at: new Date().toISOString() }).eq('code', code)
+  if (!isDemo) await admin.from('invite_codes').update({ used_at: new Date().toISOString() }).eq('code', code)
   await admin.from('audit_log').insert({
     actor_id: userId,
     woman_id: woman.id,
     event: 'patient.joined',
     entity: 'women',
     entity_id: woman.id,
-    detail: null,
+    detail: isDemo ? { demo_code: true } : null,
   })
 
   const body: JoinResponse = { token_hash: tokenHash }

@@ -210,6 +210,22 @@ describe('drift rules', () => {
   })
 })
 
+describe('baseline', () => {
+  it('first complete window uses only answers given up to that moment (spread over days)', () => {
+    // items answered in three sittings 20, 18, 16 days ago; later answers must not leak into the earlier window
+    const early = [1, 1, 1, 1, 0, 1, 0, 1, 0, 0]
+    const later = [3, 3, 3, 3, 3, 3, 3, 3, 3, 0]
+    const at = (item: number) => (item <= 3 ? 20 : item <= 6 || item === 10 ? 18 : 16) * D
+    const r = run({ extra: answers(early, at, 'e').concat(answers(later, (i) => at(i) - 8 * D, 'l')) })
+    expect(r.baseline?.total).toBe(6)
+    expect(r.baseline?.at).toBe(ago(16 * D))
+  })
+  it('an answer stamped in the future counts as now', () => {
+    const r = run({ extra: [{ id: 'f', checkin_id: 'c', item_no: 10, value: 1, answered_at: new Date(nowMs + 5 * H).toISOString() }] })
+    expect(top(r)).toBe('U1')
+  })
+})
+
 describe('determinism and purity', () => {
   it('#44 same input → identical output', () => {
     const input: EngineInput = {

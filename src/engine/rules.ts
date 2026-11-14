@@ -95,24 +95,29 @@ function dueFrom(nowMs: number, due: { hours?: number; workingDays?: number }): 
 
 // ---------------- window + baseline ----------------
 
-/** Latest answer per item with  t − window < answered_at ≤ t  (future timestamps clamped to t). */
+/** Latest answer per item with  t − window < answered_at ≤ t. Callers clamp future timestamps to now first. */
 export function latestPerItem(answers: EngineAnswer[], tMs: number, windowMs: number): Map<number, EngineAnswer> {
   const out = new Map<number, EngineAnswer>()
   for (const a of answers) {
-    const at = Math.min(ms(a.answered_at), tMs)
+    const at = ms(a.answered_at)
     if (!(at > tMs - windowMs && at <= tMs)) continue
     const prev = out.get(a.item_no)
-    if (!prev || Math.min(ms(prev.answered_at), tMs) < at || (Math.min(ms(prev.answered_at), tMs) === at && prev.id < a.id)) {
-      out.set(a.item_no, a)
-    }
+    if (!prev || ms(prev.answered_at) < at || (ms(prev.answered_at) === at && prev.id < a.id)) out.set(a.item_no, a)
   }
   return out
 }
 
+/** Device clocks can run ahead: treat any answer stamped after `now` as answered at `now`. */
+function clampToNow(answers: EngineAnswer[], nowMs: number): EngineAnswer[] {
+  return answers.map((a) => (ms(a.answered_at) > nowMs ? { ...a, answered_at: new Date(nowMs).toISOString() } : a))
+}
+
+/** First instant at which the 7-day window holds all 10 items (scan answer times in ascending order). */
 export function computeBaseline(answers: EngineAnswer[], nowMs: number, windowMs: number) {
-  const times = [...new Set(answers.map((a) => Math.min(ms(a.answered_at), nowMs)))].filter((t) => t <= nowMs).sort((a, b) => a - b)
+  const clamped = clampToNow(answers, nowMs)
+  const times = [...new Set(clamped.map((a) => ms(a.answered_at)))].sort((a, b) => a - b)
   for (const t of times) {
-    const w = latestPerItem(answers, t, windowMs)
+    const w = latestPerItem(clamped, t, windowMs)
     if (w.size === 10) {
       const items: Record<number, number> = {}
       let total = 0
@@ -146,7 +151,7 @@ export function evaluate(input: EngineInput, cfg: EngineConfig = ENGINE_CONFIG):
     })
   }
 
-  const answers = input.answers.filter((a) => Math.min(ms(a.answered_at), nowMs) <= nowMs)
+  const answers = clampToNow(input.answers, nowMs)
   const w = latestPerItem(answers, nowMs, windowMs)
   const complete = w.size === 10
   const partialSum = [...w.values()].reduce((s, a) => s + a.value, 0)

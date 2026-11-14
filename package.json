@@ -17,6 +17,7 @@
     "voice": "tsx --env-file=.env.local scripts/generate-voice.ts",
     "db:push": "npx supabase db push",
     "seed:dev": "tsx --env-file=.env.local scripts/dev-seed.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "rls-check": "tsx --env-file=.env.local scripts/rls-check.ts"
   },
   "dependencies": {
