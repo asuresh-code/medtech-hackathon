@@ -23,6 +23,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: w } = await admin.from('women').select('id').eq('pseudonym', pseudonym).maybeSingle()
     if (!w) return res.status(404).json({ error: 'Demo patient not found' })
     womanId = w.id
+    // Every judge who scans gets a check-in to do (a fresh one if none is waiting).
+    const { data: due } = await admin
+      .from('checkins')
+      .select('id')
+      .eq('woman_id', w.id)
+      .is('completed_at', null)
+      .lte('scheduled_for', new Date().toISOString())
+      .limit(1)
+      .maybeSingle()
+    if (!due) {
+      await admin
+        .from('checkins')
+        .insert({ woman_id: w.id, scheduled_for: new Date(Date.now() - 60_000).toISOString(), items: [1, 2, 3] })
+    }
   } else {
     const { data: invite } = await admin
       .from('invite_codes')
