@@ -71,10 +71,11 @@ export async function runEngineFor(
 
   await admin.from('audit_log').insert({
     actor_id: actorId,
+    woman_id: womanId,
     event: 'flag.created',
     entity: 'flags',
     entity_id: flag.id,
-    detail: { woman_id: womanId, rule_id: result.rule_id, level: result.level, rule_version: result.rule_version, owner_id: result.owner_id },
+    detail: { rule_id: result.rule_id, level: result.level, rule_version: result.rule_version, owner_id: result.owner_id },
   })
   return { created: true, result }
 }

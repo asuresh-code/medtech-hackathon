@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: checkin } = await admin
     .from('checkins')
-    .select('id, woman_id, items, women!inner(user_id, usual_hour)')
+    .select('id, woman_id, items, women!inner(user_id, usual_hour, reminder_hour)')
     .eq('id', checkinId)
     .maybeSingle()
   const owner = (checkin as unknown as { women?: { user_id: string; usual_hour: number; reminder_hour?: number | null } } | null)?.women

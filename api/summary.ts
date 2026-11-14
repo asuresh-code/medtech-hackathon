@@ -1,4 +1,4 @@
-// POST /api/summary { woman_id, now? } → { text }
+// POST /api/summary { woman_id, now? } → { status: 'ok' | 'unavailable', text }
 // Clinician-only factual summary of the raw data, shown BESIDE the data, labelled
 // "AI summary of data — not a clinical opinion". The LLM never sees or influences flags, levels,
 // owners, due times or queue order. Output is rejected unless every number appears in the input
@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const sourceHash = createHash('sha256').update(facts).digest('hex')
   const { data: cached } = await admin.from('summaries').select('text').eq('woman_id', womanId).eq('source_hash', sourceHash).maybeSingle()
-  if (cached) return res.status(200).json({ text: cached.text })
+  if (cached) return res.status(200).json({ status: 'ok', text: cached.text })
 
   let text = UNAVAILABLE
   try {
@@ -79,5 +79,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (text !== UNAVAILABLE) await admin.from('summaries').upsert({ woman_id: womanId, source_hash: sourceHash, text }, { onConflict: 'woman_id,source_hash' })
-  return res.status(200).json({ text })
+  return res.status(200).json({ status: text === UNAVAILABLE ? 'unavailable' : 'ok', text })
 }
