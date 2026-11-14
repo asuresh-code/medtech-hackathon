@@ -1,6 +1,6 @@
 // Dev A's minimal seed so the patient app can be tested before Dev B's full seed (scripts/seed.ts) lands.
 // Creates: a demo GP + health visitor + an unlinked GP (for RLS tests), one synthetic patient "Sarah"
-// with a check-in due now, one seeded drift flag (to prove patients can't read flags), and a fresh invite code.
+// ("Alex", the judges' demo patient) with a check-in due now, one seeded drift flag (to prove patients can't read flags), and a fresh invite code.
 // Safe to re-run. Run: npm run seed:dev
 import { adminClient } from '../api/_lib/supabaseAdmin.js'
 
@@ -34,7 +34,7 @@ async function main() {
       .from('women')
       .insert({
         pseudonym: 'W-DEV1',
-        first_name: 'Sarah',
+        first_name: 'Alex',
         baby_weeks: 12,
         gp_id: gp,
         hv_id: hv,

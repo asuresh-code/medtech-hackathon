@@ -161,7 +161,19 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+/** Reset Alex (W-DEV1, the judges' demo patient): clear test flags/check-ins, one check-in due now. */
+async function resetAlex() {
+  const { data: w } = await admin.from('women').select('id').eq('pseudonym', 'W-DEV1').maybeSingle()
+  if (!w) return console.log('Alex   → not found (run npm run seed:dev)')
+  await admin.from('women').update({ first_name: 'Alex', baseline_total: null }).eq('id', w.id)
+  await admin.from('flags').delete().eq('woman_id', w.id)
+  await admin.from('checkins').delete().eq('woman_id', w.id)
+  await admin.from('notifications').delete().eq('woman_id', w.id)
+  await admin.from('checkins').insert({ woman_id: w.id, scheduled_for: new Date(now.getTime() - 60_000).toISOString(), items: [1, 2, 3] })
+  console.log('Alex   → reset: no flags, a 3-question check-in due now')
+}
+
+main().then(resetAlex).catch((e) => {
   console.error(e)
   process.exit(1)
 })

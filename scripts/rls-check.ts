@@ -23,7 +23,7 @@ async function asPatient(pseudonym: string): Promise<SupabaseClient> {
   const { userId, tokenHash } = await patientSignInToken(admin, pseudonym)
   // Make sure the women row is linked (as /api/join would do).
   await admin.from('women').update({ user_id: userId }).eq('pseudonym', pseudonym)
-  await admin.from('profiles').upsert({ id: userId, role: 'patient', first_name: 'Sarah' }, { onConflict: 'id' })
+  await admin.from('profiles').upsert({ id: userId, role: 'patient', first_name: 'Alex' }, { onConflict: 'id' })
   const c = fresh()
   const { error: e2 } = await c.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' })
   if (e2) throw e2
@@ -54,7 +54,7 @@ async function main() {
     check(`patient cannot read ${t}`, allowed, r.error ?? `${r.n} rows`)
   }
   const me = await p.from('patient_me').select('*').single()
-  check('patient reads own patient_me', !me.error && me.data?.first_name === 'Sarah')
+  check('patient reads own patient_me', !me.error && me.data?.first_name === 'Alex')
   check('patient_me exposes no baseline/score', me.data ? !('baseline_total' in me.data) : false)
   const ci = await rows(p, 'checkins')
   check('patient reads own check-ins', ci.n > 0, `${ci.n} rows`)

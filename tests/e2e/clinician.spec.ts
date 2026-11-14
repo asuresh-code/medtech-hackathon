@@ -14,7 +14,7 @@ test('GP: queue is urgent → review → drift; brief shows rule + source; decis
   expect(text.join(' ')).toMatch(/Priya/)
   if (shots) await page.screenshot({ path: `${shots}/c-queue.png`, fullPage: true })
 
-  await rows.filter({ hasText: 'Sarah' }).click()
+  await rows.filter({ hasText: 'W-SARAH' }).click()
   await expect(page.getByText(/D1: EPDS 11, up 5 from her baseline 6/)).toBeVisible()
   await expect(page.getByText(/Matthey 2004/)).toBeVisible()
   if (shots) await page.screenshot({ path: `${shots}/c-brief.png`, fullPage: true })
@@ -28,7 +28,7 @@ test('GP: queue is urgent → review → drift; brief shows rule + source; decis
 test('secondary referral needs a reason', async ({ page }) => {
   await page.goto('/clinician')
   await page.getByTestId('demo-gp').click()
-  await page.getByTestId('queue-row').filter({ hasText: 'Maya' }).click()
+  await page.getByTestId('queue-row').filter({ hasText: 'W-MAYA' }).click()
   await page.getByTestId('decision-secondary_referral').click()
   await expect(page.getByTestId('decision-submit')).toBeDisabled()
 })
