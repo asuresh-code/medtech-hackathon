@@ -82,7 +82,8 @@ export async function recordDecision(opts: {
       .from('decisions')
       .insert({ flag_id: flagId, woman_id: opts.womanId, clinician_id: clinician, decision: opts.decision, reason: opts.reason })
     if (error) throw error
-    await supabase.from('flags').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', flagId)
+    const upd = await supabase.from('flags').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', flagId)
+    if (upd.error) await supabase.from('flags').update({ status: 'closed' }).eq('id', flagId) // closed_at column not migrated yet
   }
   await supabase.from('audit_log').insert({
     actor_id: clinician,
