@@ -69,7 +69,7 @@ export function computeBaseline(answers: readonly AnswerIn[], days: number): num
 }
 
 /** Missed = completed_at null and scheduled_for + grace <= now. Not-yet-due check-ins are excluded. */
-export function missedStatus(checkins: readonly CheckinIn[], now: number, graceHours: number) {
+export function missedStatus<T extends CheckinIn>(checkins: readonly T[], now: number, graceHours: number) {
   const due = checkins
     .filter((c) => Date.parse(c.scheduled_for) + graceHours * HOUR_MS <= now)
     .sort((a, b) => Date.parse(a.scheduled_for) - Date.parse(b.scheduled_for))
