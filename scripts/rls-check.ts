@@ -2,7 +2,7 @@
 // Signs in as the seeded patient and as clinicians, and asserts what each role can and cannot read.
 // Run after `npm run seed:dev`:  npm run rls-check
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { adminClient, patientSignInToken } from '../api/_lib/supabaseAdmin'
+import { adminClient, patientSignInToken } from '../api/_lib/supabaseAdmin.js'
 
 const url = process.env.VITE_SUPABASE_URL!
 const anon = process.env.VITE_SUPABASE_ANON_KEY!

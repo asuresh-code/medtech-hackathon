@@ -4,12 +4,17 @@ import { supabase } from '../lib/supabase'
 import { now } from '../lib/demoClock'
 import type { CheckIn } from '../shared/types'
 
+/** Patient-safe profile (view `patient_me`): no scores, no flags. */
 export interface PatientMe {
   id: string
   first_name: string
   baby_weeks: number
   usual_hour: number
   group_label: string | null
+  reminder_hour?: number | null
+  routine_label?: string | null
+  hv_name?: string | null
+  gp_name?: string | null
 }
 
 export function useSession() {
@@ -26,7 +31,22 @@ export function useSession() {
   return { session, loading }
 }
 
-/** Patient's own safe profile + her due / next check-in. Never reads scores or flags. */
+export function usePatientMe(enabled: boolean) {
+  const [me, setMe] = useState<PatientMe | null>(null)
+  const [loading, setLoading] = useState(true)
+  const refresh = useCallback(async () => {
+    if (!enabled) return
+    const { data } = await supabase.from('patient_me').select('*').maybeSingle()
+    setMe((data as PatientMe | null) ?? null)
+    setLoading(false)
+  }, [enabled])
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+  return { me, loading, refresh }
+}
+
+/** Her due check-in (kept open until the next one is due — no backlog) and the next scheduled one. */
 export function usePatientHome(enabled: boolean) {
   const [me, setMe] = useState<PatientMe | null>(null)
   const [due, setDue] = useState<CheckIn | null>(null)
@@ -71,4 +91,26 @@ export function usePatientHome(enabled: boolean) {
   }, [refresh])
 
   return { me, due, next, error, loading, refresh }
+}
+
+// ---- per-device preferences ----
+const AUTO_READ = 'aluna.autoRead'
+export function getAutoRead(): boolean {
+  try {
+    return localStorage.getItem(AUTO_READ) === 'on'
+  } catch {
+    return false
+  }
+}
+export function setAutoRead(on: boolean): void {
+  try {
+    localStorage.setItem(AUTO_READ, on ? 'on' : 'off')
+  } catch {
+    /* ignore */
+  }
+}
+
+export function greeting(d: Date): string {
+  const h = d.getHours()
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }

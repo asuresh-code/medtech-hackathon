@@ -2,7 +2,7 @@
 // Creates: a demo GP + health visitor + an unlinked GP (for RLS tests), one synthetic patient "Sarah"
 // with a check-in due now, one seeded drift flag (to prove patients can't read flags), and a fresh invite code.
 // Safe to re-run. Run: npm run seed:dev
-import { adminClient } from '../api/_lib/supabaseAdmin'
+import { adminClient } from '../api/_lib/supabaseAdmin.js'
 
 const admin = adminClient()
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'aluna-demo-2026'

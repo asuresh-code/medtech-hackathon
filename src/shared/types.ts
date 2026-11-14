@@ -23,8 +23,8 @@ export interface Woman {
   pseudonym: string // e.g. 'W-0001'
   first_name: string
   baby_weeks: number
-  gp_id: string | null // named owner for urgent/review flags
-  hv_id: string | null // named owner for drift flags
+  gp_id: string // named owner for urgent/review flags (NOT NULL in DB)
+  hv_id: string // named owner for drift flags (NOT NULL in DB)
   baseline_total: number | null // first complete 7-day EPDS window
   usual_hour: number // 0-23, learned check-in hour
   group_label: string | null // e.g. 'Tuesday 10:00 baby & me group'
