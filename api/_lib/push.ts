@@ -1,6 +1,6 @@
 // Server-side Web Push helper (Dev A). VAPID keys live in env; nothing here touches an LLM.
 import type { SupabaseClient } from '@supabase/supabase-js'
-import webpush from 'web-push'
+import { sendNotification, setVapidDetails } from 'web-push'
 
 let configured = false
 function configure() {
@@ -8,7 +8,7 @@ function configure() {
   const pub = process.env.VITE_VAPID_PUBLIC_KEY
   const priv = process.env.VAPID_PRIVATE_KEY
   if (!pub || !priv) throw new Error('Missing VAPID keys')
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:aluna-demo@example.com', pub, priv)
+  setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:aluna-demo@example.com', pub, priv)
   configured = true
 }
 
@@ -26,7 +26,7 @@ export async function sendToWoman(admin: SupabaseClient, womanId: string, payloa
   let delivered = 0
   for (const s of subs ?? []) {
     try {
-      await webpush.sendNotification(
+      await sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         JSON.stringify(payload),
         { TTL: 6 * 3600, urgency: 'normal' },
