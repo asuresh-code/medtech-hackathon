@@ -14,7 +14,7 @@ Read `CLAUDE.md` first. You own: scaffold, Supabase schema/RLS/auth, PWA, design
 - [ ] Vercel connected, env vars set, production deploy, PWA installed on a phone
 - [ ] Patient E2E green on Preview URL
 - [ ] Fold in engagement notes (within CLAUDE.md voice rules)
-- [ ] Esme approves every line in `src/content/phrases.json` + crisis wording; EPDS licence confirmed
+- [ ] Esme approves every line in `src/content/phrases` + crisis wording; EPDS licence confirmed
 - [ ] Stretch: Web Push daily prompt (+ max one reminder) via Vercel Cron
 
 ## Done when

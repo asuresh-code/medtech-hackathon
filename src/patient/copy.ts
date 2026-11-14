@@ -1,7 +1,7 @@
-// Renders approved patient-facing lines from src/content/phrases.json.
+// Renders approved patient-facing lines from src/content/phrases.
 // The app never generates patient text with an LLM — only these approved templates.
 
-import phrases from '../content/phrases.json'
+import phrases from '../content/phrases'
 
 export type PhraseKey = keyof typeof phrases
 

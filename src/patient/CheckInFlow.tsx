@@ -1,14 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { now } from '../lib/demoClock'
-import { canListen, canSpeak, listen, matchSpokenAnswer, speak, stopSpeaking, type ListenHandle } from '../lib/speech'
+import {
+  canListen,
+  canSpeak,
+  listen,
+  listenOnce,
+  matchSpokenAnswer,
+  speak,
+  splitNoteCommand,
+  stopSpeaking,
+  unlockAudio,
+  type ListenHandle,
+} from '../lib/speech'
 import { supabase } from '../lib/supabase'
 import { EPDS_STEM, getItem, isPositiveSelfHarm, SELF_HARM_ITEM, type EpdsItem } from '../shared/epds'
 import { findSafetyPhrase } from '../shared/safety'
 import type { CheckIn, ItemNo, ItemValue, ScoreRequest, ScoreResponse } from '../shared/types'
-import { friendlyWhen, line } from './copy'
+import phrases from '../content/phrases'
+import { friendlyWhen, line, pick } from './copy'
 import { CrisisContacts } from './CrisisScreen'
-import { PatientLayout } from './PatientLayout'
+import { CloseIcon, MicIcon, SpeakerIcon } from './Icons'
+import { FocusLayout, PatientLayout } from './PatientLayout'
+import { getAutoRead } from './usePatient'
+import { confirm10Line, heardLine, optionsLine, questionLine } from './voiceLines'
 
 type Step =
   | { kind: 'loading' }
@@ -21,33 +36,39 @@ type Step =
   | { kind: 'close'; nextWhen: string | null }
   | { kind: 'crisis' }
 
-interface Answer {
-  value: ItemValue
-  via: 'tap' | 'voice'
-}
+type VoiceStatus = 'idle' | 'speaking' | 'listening'
 
 export function CheckInFlow() {
   const { id } = useParams<{ id: string }>()
+  const [params] = useSearchParams()
   const navigate = useNavigate()
   const [checkin, setCheckin] = useState<CheckIn | null>(null)
+  const [womanId, setWomanId] = useState<string | null>(null)
   const [firstName, setFirstName] = useState('')
   const [groupLabel, setGroupLabel] = useState<string | null>(null)
   const [step, setStep] = useState<Step>({ kind: 'loading' })
-  const [answers, setAnswers] = useState<Partial<Record<ItemNo, Answer>>>({})
+  const [selected, setSelected] = useState<number | null>(null)
   const [note, setNote] = useState('')
+  const [voiceMode, setVoiceMode] = useState(params.get('voice') === '1' && canListen())
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('idle')
+  const [heard, setHeard] = useState<string | null>(null)
   const saved = useRef<Set<ItemNo>>(new Set())
+  const noteRef = useRef('')
+  noteRef.current = note
 
+  // ---------- load ----------
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const [{ data: c, error }, { data: me }] = await Promise.all([
         supabase.from('checkins').select('*').eq('id', id!).maybeSingle(),
-        supabase.from('patient_me').select('first_name, group_label').maybeSingle(),
+        supabase.from('patient_me').select('id, first_name, group_label').maybeSingle(),
       ])
       if (cancelled) return
       if (error || !c) return setStep({ kind: 'error', message: 'This check-in could not be found.' })
       if (c.completed_at) return navigate('/', { replace: true })
       setCheckin(c as CheckIn)
+      setWomanId(me?.id ?? null)
       setFirstName(me?.first_name ?? '')
       setGroupLabel(me?.group_label ?? null)
       setStep({ kind: 'opener' })
@@ -58,20 +79,20 @@ export function CheckInFlow() {
   }, [id, navigate])
 
   const items: EpdsItem[] = useMemo(() => (checkin?.items ?? []).map((n) => getItem(n as ItemNo)), [checkin])
+  const seed = checkin?.id ?? ''
 
-  async function saveAnswer(item: ItemNo, a: Answer) {
+  // ---------- persistence ----------
+  async function saveAnswer(item: ItemNo, value: ItemValue, via: 'tap' | 'voice') {
     if (!checkin || saved.current.has(item)) return
-    const me = await supabase.from('patient_me').select('id').single()
     const { error } = await supabase.from('item_answers').insert({
-      woman_id: me.data?.id,
+      woman_id: womanId,
       checkin_id: checkin.id,
       item_no: item,
-      value: a.value,
-      via: a.via,
+      value,
+      via,
       answered_at: now().toISOString(),
     })
-    // 23505 = already saved (e.g. page reloaded) — fine.
-    if (error && error.code !== '23505') throw error
+    if (error && error.code !== '23505') throw error // 23505 = already saved (reload) — fine
     saved.current.add(item)
   }
 
@@ -94,22 +115,21 @@ export function CheckInFlow() {
       const body = (await res.json()) as ScoreResponse
       return body.next_checkin ? friendlyWhen(body.next_checkin.scheduled_for, now()) : null
     } catch {
-      return null // scoring retries server-side later; never block her on it
+      return null
     }
   }
 
   async function answerItem(index: number, value: ItemValue, via: 'tap' | 'voice') {
     const item = items[index]
-    const a = { value, via }
-    setAnswers((prev) => ({ ...prev, [item.no]: a }))
     try {
-      await saveAnswer(item.no, a)
+      await saveAnswer(item.no, value, via)
       if (isPositiveSelfHarm(item.no, value)) {
-        // Urgent route: show crisis contacts straight away; save what we have.
-        setStep({ kind: 'crisis' })
+        setStep({ kind: 'crisis' }) // urgent route: crisis contacts straight away
         await finish(null)
         return
       }
+      setSelected(null)
+      setHeard(null)
       setStep(index + 1 < items.length ? { kind: 'item', index: index + 1 } : { kind: 'note' })
     } catch {
       setStep({ kind: 'error', message: "Couldn't save. Check your connection and try again." })
@@ -127,297 +147,445 @@ export function CheckInFlow() {
     }
   }
 
-  const seed = checkin?.id ?? ''
+  // ---------- auto read-aloud (tap mode) ----------
+  useEffect(() => {
+    if (voiceMode || !getAutoRead() || step.kind !== 'item') return
+    const item = items[step.index]
+    if (item) void speak(questionLine(item))
+    return () => stopSpeaking()
+  }, [step, voiceMode, items])
 
-  return (
-    <PatientLayout>
-      {step.kind === 'loading' && <p className="p-muted">Loading…</p>}
+  // ---------- hands-free driver: the whole check-in, spoken ----------
+  useEffect(() => {
+    if (!voiceMode) return
+    const token = { cancelled: false }
+    let cancelListen: (() => void) | null = null
+    let noteHandle: ListenHandle | null = null
+    const alive = () => !token.cancelled
 
-      {step.kind === 'error' && (
-        <>
-          <p role="alert" className="p-error">
-            {step.message}
-          </p>
-          <Link to="/" className="p-btn p-btn-quiet">
-            Back
-          </Link>
-        </>
-      )}
+    const say = async (t: string) => {
+      if (!alive()) return
+      setVoiceStatus('speaking')
+      await speak(t)
+      if (alive()) setVoiceStatus('idle')
+    }
+    const hear = async (): Promise<string[]> => {
+      if (!alive()) return []
+      setVoiceStatus('listening')
+      const l = listenOnce(9000)
+      cancelListen = l.cancel
+      const r = await l.promise
+      cancelListen = null
+      if (alive()) setVoiceStatus('idle')
+      return r
+    }
+    const toTap = async () => {
+      await say(phrases.voiceTapFallback)
+      if (alive()) setVoiceMode(false)
+    }
 
-      {step.kind === 'opener' && (
-        <section className="p-card">
-          <p className="p-lead" data-testid="opener">
-            {line('opener', { name: firstName, count: items.length }, seed)}
-          </p>
-          <button type="button" className="p-btn p-btn-primary p-btn-big" onClick={() => setStep({ kind: 'item', index: 0 })}>
-            Start
-          </button>
-          <Link to="/" className="p-btn p-btn-quiet">
-            Not now
-          </Link>
-        </section>
-      )}
+    ;(async () => {
+      if (step.kind === 'opener') {
+        await say(phrases.voiceOpener)
+        if (alive()) setStep({ kind: 'item', index: 0 })
+        return
+      }
 
-      {step.kind === 'item' && items[step.index] && (
-        <ItemScreen
-          key={items[step.index].no}
-          item={items[step.index]}
-          position={step.index + 1}
-          total={items.length}
-          initial={answers[items[step.index].no]?.value}
-          onAnswer={(value, via, label) => {
-            const item = items[step.index]
-            if (item.no === SELF_HARM_ITEM) setStep({ kind: 'confirm10', index: step.index, value, label })
-            else void answerItem(step.index, value, via)
-          }}
-        />
-      )}
-
-      {step.kind === 'confirm10' && (
-        <Confirm10
-          label={step.label}
-          onYes={(via) => void answerItem(step.index, step.value, via)}
-          onChange={() => setStep({ kind: 'item', index: step.index })}
-        />
-      )}
-
-      {step.kind === 'note' && <NoteScreen value={note} onChange={setNote} onDone={(t) => void submitNote(t)} />}
-
-      {step.kind === 'saving' && <p className="p-muted">Saving…</p>}
-
-      {step.kind === 'close' && (
-        <section className="p-card" data-testid="close">
-          <h1>{line('closeTitle', {}, seed)}</h1>
-          {groupLabel && <p>{line('closeGroup', { group: groupLabel })}</p>}
-          {step.nextWhen && <p>{line('closeNext', { when: step.nextWhen })}</p>}
-          <p className="p-muted">{line('closeOutward', {}, seed)}</p>
-          <Link to="/" className="p-btn p-btn-primary">
-            Done
-          </Link>
-        </section>
-      )}
-
-      {step.kind === 'crisis' && (
-        <>
-          <CrisisContacts afterDisclosure />
-          <Link to="/" className="p-btn p-btn-quiet">
-            Close
-          </Link>
-        </>
-      )}
-    </PatientLayout>
-  )
-}
-
-// ---------------- one EPDS item per screen ----------------
-
-function ItemScreen(props: {
-  item: EpdsItem
-  position: number
-  total: number
-  initial?: ItemValue
-  onAnswer: (value: ItemValue, via: 'tap' | 'voice', label: string) => void
-}) {
-  const { item, position, total, onAnswer } = props
-  const isItem10 = item.no === SELF_HARM_ITEM
-  // Item 10 never has a pre-selected answer.
-  const [selected, setSelected] = useState<number | null>(
-    isItem10 || props.initial === undefined ? null : item.options.findIndex((o) => o.value === props.initial),
-  )
-  const [via, setVia] = useState<'tap' | 'voice'>('tap')
-  const [heard, setHeard] = useState<string | null>(null)
-  const [listening, setListening] = useState(false)
-  const handle = useRef<ListenHandle | null>(null)
-
-  useEffect(() => () => {
-    handle.current?.stop()
-    stopSpeaking()
-  }, [])
-
-  function readAloud() {
-    speak(`${EPDS_STEM} ${item.text}. ${item.options.map((o, i) => `Option ${i + 1}: ${o.label}.`).join(' ')}`)
-  }
-
-  function startListening() {
-    stopSpeaking()
-    setHeard(null)
-    setListening(true)
-    handle.current = listen({
-      onText: (alts) => {
-        const intent = matchSpokenAnswer(alts, item.options)
-        setHeard(intent.heard)
-        if (intent.kind === 'option') {
-          setSelected(intent.index)
-          setVia('voice')
-        } else if (intent.kind === 'change') {
-          setSelected(null)
+      if (step.kind === 'item') {
+        const item = items[step.index]
+        if (!item) return
+        await say(questionLine(item))
+        await say(optionsLine(item))
+        let misses = 0
+        while (alive()) {
+          const intent = matchSpokenAnswer(await hear(), item.options)
+          if (!alive()) return
+          setHeard(intent.heard || null)
+          if (intent.kind === 'option') {
+            const opt = item.options[intent.index]
+            setSelected(intent.index)
+            if (item.no === SELF_HARM_ITEM) {
+              setStep({ kind: 'confirm10', index: step.index, value: opt.value, label: opt.label })
+              return
+            }
+            await say(heardLine(opt.label))
+            const conf = matchSpokenAnswer(await hear(), [])
+            if (!alive()) return
+            if (conf.kind === 'change' || conf.kind === 'no') {
+              setSelected(null)
+              await say(optionsLine(item))
+              continue
+            }
+            await answerItem(step.index, opt.value, 'voice') // "next", "yes" or a pause → move on
+            return
+          }
+          if (intent.kind === 'repeat') {
+            await say(questionLine(item))
+            await say(optionsLine(item))
+            continue
+          }
+          if (intent.kind === 'stop') return setVoiceMode(false)
+          if (++misses >= 3) return toTap()
+          await say(phrases.voiceNotClear)
         }
-      },
-      onError: () => setListening(false),
-      onEnd: () => setListening(false),
-    })
-    if (!handle.current) setListening(false)
+        return
+      }
+
+      if (step.kind === 'confirm10') {
+        await say(confirm10Line(step.label))
+        for (let tries = 0; tries < 3 && alive(); tries++) {
+          const intent = matchSpokenAnswer(await hear(), [])
+          if (!alive()) return
+          if (intent.kind === 'yes') return answerItem(step.index, step.value, 'voice')
+          if (intent.kind === 'change' || intent.kind === 'no') {
+            setSelected(null)
+            return setStep({ kind: 'item', index: step.index })
+          }
+          await say(confirm10Line(step.label))
+        }
+        return toTap()
+      }
+
+      if (step.kind === 'note') {
+        await say(phrases.voiceNoteIntro)
+        if (!alive()) return
+        setVoiceStatus('listening')
+        const finalText = await new Promise<string | null>((resolve) => {
+          let settled = false
+          const settle = (v: string | null) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timer)
+            noteHandle?.stop()
+            resolve(v)
+          }
+          const timer = setTimeout(() => settle(noteRef.current.trim() || null), 60_000)
+          noteHandle = listen({
+            continuous: true,
+            onText: ([t]) => {
+              const { text, command } = splitNoteCommand(t ?? '')
+              setNote(text)
+              if (command === 'skip') settle(null)
+              else if (command === 'finish') settle(text.trim() || null)
+            },
+            onEnd: () => settle(noteRef.current.trim() || null),
+            onError: () => settle(noteRef.current.trim() || null),
+          })
+          if (!noteHandle) settle(null)
+        })
+        if (!alive()) return
+        setVoiceStatus('idle')
+        await submitNote(finalText)
+        return
+      }
+
+      if (step.kind === 'close') {
+        await say(pick(phrases.closeTitle, seed))
+        await say(pick(phrases.closeOutward, seed))
+        if (alive()) setVoiceMode(false)
+        return
+      }
+
+      if (step.kind === 'crisis') {
+        await say(phrases.crisisVoice)
+        if (alive()) setVoiceMode(false)
+      }
+    })()
+
+    return () => {
+      token.cancelled = true
+      cancelListen?.()
+      noteHandle?.stop()
+      stopSpeaking()
+      setVoiceStatus('idle')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceMode, step, items])
+
+  function toggleVoice() {
+    if (voiceMode) {
+      setVoiceMode(false)
+      stopSpeaking()
+    } else {
+      unlockAudio()
+      setVoiceMode(true)
+    }
   }
 
-  return (
-    <section className="p-card" aria-labelledby={`q${item.no}`}>
-      <p className="p-progress" aria-label={`Question ${position} of ${total}`}>
-        {Array.from({ length: total }, (_, i) => (
+  // ---------- render ----------
+  if (step.kind === 'loading' || step.kind === 'error' || step.kind === 'crisis' || step.kind === 'saving') {
+    return (
+      <PatientLayout tabs={false}>
+        {step.kind === 'loading' && <p className="p-muted">Loading…</p>}
+        {step.kind === 'saving' && <p className="p-muted">Saving…</p>}
+        {step.kind === 'error' && (
+          <div className="p-stack">
+            <p role="alert" className="p-error">
+              {step.message}
+            </p>
+            <Link to="/" className="p-btn p-btn-soft">
+              Back
+            </Link>
+          </div>
+        )}
+        {step.kind === 'crisis' && (
+          <>
+            <CrisisContacts afterDisclosure />
+            <Link to="/" className="p-btn p-btn-soft p-btn-block">
+              Close
+            </Link>
+          </>
+        )}
+      </PatientLayout>
+    )
+  }
+
+  const position = step.kind === 'item' || step.kind === 'confirm10' ? step.index + 1 : step.kind === 'opener' ? 0 : items.length
+  const top = (
+    <>
+      <Link to="/" className="p-icon-btn" aria-label="Close check-in" onClick={() => stopSpeaking()}>
+        <CloseIcon size={20} />
+      </Link>
+      <div className="p-progress" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={position} aria-label="Check-in progress">
+        {items.map((_, i) => (
           <span key={i} className={i < position ? 'on' : ''} />
         ))}
-      </p>
-      <p className="p-stem">{EPDS_STEM}</p>
-      <h1 id={`q${item.no}`} className="p-question" data-testid="question">
-        {item.text}
-      </h1>
-
-      <div className="p-options" role="radiogroup" aria-labelledby={`q${item.no}`}>
-        {item.options.map((o, i) => (
-          <button
-            key={o.label}
-            type="button"
-            role="radio"
-            aria-checked={selected === i}
-            className={`p-option ${selected === i ? 'is-selected' : ''}`}
-            onClick={() => {
-              setSelected(i)
-              setVia('tap')
-            }}
-            data-testid={`option-${i}`}
-          >
-            {o.label}
-          </button>
-        ))}
       </div>
-
-      {(canSpeak() || canListen()) && (
-        <div className="p-voice">
-          {canSpeak() && (
-            <button type="button" className="p-btn p-btn-quiet" onClick={readAloud}>
-              🔊 Read aloud
-            </button>
-          )}
-          {canListen() && (
-            <button
-              type="button"
-              className={`p-btn p-btn-quiet ${listening ? 'is-listening' : ''}`}
-              onClick={listening ? () => handle.current?.stop() : startListening}
-              aria-pressed={listening}
-            >
-              {listening ? '● Listening…' : '🎙 Say answer'}
-            </button>
-          )}
-        </div>
-      )}
-      {heard !== null && (
-        <p className="p-heard" aria-live="polite">
-          Heard: “{heard}”{selected === null ? ' — please tap an answer or try again.' : ''}
-        </p>
-      )}
-
-      <button
-        type="button"
-        className="p-btn p-btn-primary p-btn-big"
-        disabled={selected === null}
-        onClick={() => selected !== null && onAnswer(item.options[selected].value, via, item.options[selected].label)}
-        data-testid="next"
-      >
-        Next
-      </button>
-    </section>
-  )
-}
-
-// ---------------- item 10 deliberate confirmation ----------------
-
-function Confirm10({ label, onYes, onChange }: { label: string; onYes: (via: 'tap' | 'voice') => void; onChange: () => void }) {
-  const [listening, setListening] = useState(false)
-  const handle = useRef<ListenHandle | null>(null)
-  useEffect(() => () => handle.current?.stop(), [])
-
-  return (
-    <section className="p-card" data-testid="confirm10">
-      <p className="p-lead">{line('item10Confirm', { answer: label })}</p>
-      <button type="button" className="p-btn p-btn-primary p-btn-big" onClick={() => onYes('tap')} data-testid="confirm-yes">
-        Yes, that's right
-      </button>
-      <button type="button" className="p-btn p-btn-quiet" onClick={onChange} data-testid="confirm-change">
-        Change my answer
-      </button>
-      {canListen() && (
+      {canListen() && step.kind !== 'close' && (
         <button
           type="button"
-          className="p-btn p-btn-quiet"
-          onClick={() => {
-            setListening(true)
-            handle.current = listen({
-              onText: (alts) => {
-                const intent = matchSpokenAnswer(alts, [])
-                if (intent.kind === 'yes') onYes('voice')
-                else if (intent.kind === 'no' || intent.kind === 'change') onChange()
-              },
-              onEnd: () => setListening(false),
-              onError: () => setListening(false),
-            })
-          }}
+          className="p-icon-btn"
+          onClick={toggleVoice}
+          aria-pressed={voiceMode}
+          aria-label={voiceMode ? 'Stop voice mode' : 'Talk me through it'}
+          style={voiceMode ? { background: 'var(--accent)', color: 'var(--accent-ink)', borderColor: 'var(--accent)' } : undefined}
+          data-testid="voice-toggle"
         >
-          {listening ? '● Listening… say “yes” or “change”' : '🎙 Answer by voice'}
+          <MicIcon size={20} />
         </button>
       )}
-    </section>
+    </>
+  )
+
+  const voiceBar = voiceMode && (
+    <div className="p-voice-status" aria-live="polite" data-testid="voice-status">
+      <span className={`p-orb ${voiceStatus === 'listening' ? 'listening' : ''}`}>
+        {voiceStatus === 'speaking' ? (
+          <span className="p-wave" aria-hidden>
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+        ) : (
+          <MicIcon size={18} />
+        )}
+      </span>
+      <span style={{ flex: 1 }}>
+        {voiceStatus === 'listening' ? 'Listening…' : voiceStatus === 'speaking' ? 'Speaking…' : 'Voice mode on'}
+        {heard && <span className="p-muted p-small" style={{ display: 'block' }}>Heard: “{heard}”</span>}
+      </span>
+      <button type="button" className="p-btn p-btn-quiet" style={{ minHeight: 40, padding: '0 10px' }} onClick={toggleVoice}>
+        Stop
+      </button>
+    </div>
+  )
+
+  if (step.kind === 'opener') {
+    return (
+      <FocusLayout
+        top={top}
+        actions={
+          <>
+            <button type="button" className="p-btn p-btn-primary p-btn-big" onClick={() => setStep({ kind: 'item', index: 0 })} data-testid="begin">
+              Begin
+            </button>
+            {canListen() && !voiceMode && (
+              <button
+                type="button"
+                className="p-btn p-btn-soft"
+                onClick={() => {
+                  unlockAudio()
+                  setVoiceMode(true)
+                }}
+                data-testid="begin-voice"
+              >
+                <MicIcon size={20} /> Talk me through it
+              </button>
+            )}
+          </>
+        }
+      >
+        {voiceBar}
+        <p className="p-eyebrow">Check-in</p>
+        <h1 className="p-question" data-testid="opener">
+          {line('opener', { name: firstName, count: items.length }, seed)}
+        </h1>
+        <p className="p-muted">Answer by tapping, or by voice — whichever is easier right now.</p>
+      </FocusLayout>
+    )
+  }
+
+  if (step.kind === 'item' && items[step.index]) {
+    const item = items[step.index]
+    const isItem10 = item.no === SELF_HARM_ITEM
+    return (
+      <FocusLayout
+        top={top}
+        actions={
+          <button
+            type="button"
+            className="p-btn p-btn-primary p-btn-big"
+            disabled={selected === null}
+            onClick={() => {
+              if (selected === null) return
+              const opt = item.options[selected]
+              if (isItem10) setStep({ kind: 'confirm10', index: step.index, value: opt.value, label: opt.label })
+              else void answerItem(step.index, opt.value, 'tap')
+            }}
+            data-testid="next"
+          >
+            Next
+          </button>
+        }
+      >
+        {voiceBar}
+        <div key={item.no} className="p-stack">
+          <p className="p-stem">{EPDS_STEM}</p>
+          <h1 id={`q${item.no}`} className="p-question" data-testid="question">
+            {item.text}
+          </h1>
+          {!voiceMode && canSpeak() && (
+            <button
+              type="button"
+              className="p-btn p-btn-quiet"
+              style={{ alignSelf: 'flex-start', minHeight: 40, padding: '0 6px' }}
+              onClick={() => {
+                unlockAudio()
+                void speak(`${questionLine(item)} ${optionsLine(item)}`)
+              }}
+            >
+              <SpeakerIcon size={18} /> Read aloud
+            </button>
+          )}
+          <div className="p-options" role="radiogroup" aria-labelledby={`q${item.no}`}>
+            {item.options.map((o, i) => (
+              <button
+                key={o.label}
+                type="button"
+                role="radio"
+                aria-checked={selected === i}
+                className={`p-option ${selected === i ? 'is-selected' : ''}`}
+                onClick={() => setSelected(i)}
+                data-testid={`option-${i}`}
+              >
+                <span className="p-radio" aria-hidden />
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </FocusLayout>
+    )
+  }
+
+  if (step.kind === 'confirm10') {
+    return (
+      <FocusLayout
+        top={top}
+        actions={
+          <>
+            <button type="button" className="p-btn p-btn-primary p-btn-big" onClick={() => void answerItem(step.index, step.value, 'tap')} data-testid="confirm-yes">
+              Yes, that's right
+            </button>
+            <button
+              type="button"
+              className="p-btn p-btn-soft"
+              onClick={() => {
+                setSelected(null)
+                setStep({ kind: 'item', index: step.index })
+              }}
+              data-testid="confirm-change"
+            >
+              Change my answer
+            </button>
+          </>
+        }
+      >
+        {voiceBar}
+        <div data-testid="confirm10" className="p-stack">
+          <p className="p-stem">{getItem(SELF_HARM_ITEM).text}</p>
+          <h1 className="p-question">{line('item10Confirm', { answer: step.label })}</h1>
+        </div>
+      </FocusLayout>
+    )
+  }
+
+  if (step.kind === 'note') {
+    return (
+      <FocusLayout
+        top={top}
+        actions={
+          <button type="button" className="p-btn p-btn-primary p-btn-big" onClick={() => void submitNote(note.trim() || null)} data-testid="note-save">
+            {note.trim() ? 'Save and finish' : 'Finish'}
+          </button>
+        }
+      >
+        {voiceBar}
+        <label htmlFor="note" className="p-question" style={{ fontSize: 24 }}>
+          {line('notePrompt')}
+        </label>
+        <textarea id="note" className="p-note" maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} data-testid="note" />
+        {!voiceMode && canListen() && <NoteMic value={note} onChange={setNote} />}
+        {note.trim() && <p className="p-muted p-small">{line('noteThanks')}</p>}
+      </FocusLayout>
+    )
+  }
+
+  // close
+  const nextWhen = step.kind === 'close' ? step.nextWhen : null
+  return (
+    <FocusLayout
+      top={top}
+      actions={
+        <Link to="/" className="p-btn p-btn-primary p-btn-big">
+          Done
+        </Link>
+      }
+    >
+      {voiceBar}
+      <section className="p-stack" data-testid="close">
+        <h1 className="p-question">{line('closeTitle', {}, seed)}</h1>
+        {groupLabel && <p className="p-lead">{line('closeGroup', { group: groupLabel })}</p>}
+        {nextWhen && <p className="p-lead">{line('closeNext', { when: nextWhen })}</p>}
+        <p className="p-muted">{line('closeOutward', {}, seed)}</p>
+      </section>
+    </FocusLayout>
   )
 }
 
-// ---------------- optional note ----------------
-
-function NoteScreen({ value, onChange, onDone }: { value: string; onChange: (v: string) => void; onDone: (t: string | null) => void }) {
+function NoteMic({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [listening, setListening] = useState(false)
   const handle = useRef<ListenHandle | null>(null)
   const base = useRef('')
   useEffect(() => () => handle.current?.stop(), [])
-
   return (
-    <section className="p-card">
-      <label htmlFor="note" className="p-lead">
-        {line('notePrompt')}
-      </label>
-      <textarea
-        id="note"
-        className="p-note"
-        rows={4}
-        maxLength={2000}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        data-testid="note"
-      />
-      {canListen() && (
-        <button
-          type="button"
-          className={`p-btn p-btn-quiet ${listening ? 'is-listening' : ''}`}
-          onClick={() => {
-            if (listening) return handle.current?.stop()
-            base.current = value ? `${value} ` : ''
-            setListening(true)
-            handle.current = listen({
-              continuous: true,
-              onText: ([t]) => onChange(base.current + t),
-              onEnd: () => setListening(false),
-              onError: () => setListening(false),
-            })
-          }}
-        >
-          {listening ? '● Listening… tap to stop' : '🎙 Speak instead'}
-        </button>
-      )}
-      <button
-        type="button"
-        className="p-btn p-btn-primary p-btn-big"
-        onClick={() => onDone(value.trim() || null)}
-        data-testid="note-save"
-      >
-        {value.trim() ? 'Save and finish' : 'Finish'}
-      </button>
-      {value.trim() && <p className="p-muted">{line('noteThanks')}</p>}
-    </section>
+    <button
+      type="button"
+      className={`p-btn p-btn-soft ${listening ? 'is-listening' : ''}`}
+      onClick={() => {
+        if (listening) return handle.current?.stop()
+        base.current = value ? `${value} ` : ''
+        setListening(true)
+        handle.current = listen({
+          continuous: true,
+          onText: ([t]) => onChange(base.current + t),
+          onEnd: () => setListening(false),
+          onError: () => setListening(false),
+        })
+      }}
+    >
+      <MicIcon size={20} /> {listening ? 'Listening… tap to stop' : 'Speak instead'}
+    </button>
   )
 }

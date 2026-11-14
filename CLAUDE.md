@@ -14,7 +14,7 @@ Two developers work in parallel, each with their own Claude session, pushing to 
 2. **The LLM never diagnoses, names a condition, assesses risk, recommends or reassures.** It is used only for (a) the clinician's factual summary (guarded by a number check + banned words, shown beside raw data) and (b) build-time drafting of phrase variants a human approves. **No live LLM on the patient side.**
 3. **Nothing decided is shown to the patient**: no scores, thresholds, flags, levels, verdicts, streaks, "you're fine", "well done". Crisis contacts after a positive item 10 / disclosure are support info, not a verdict.
 4. **The clinician makes every final decision.** Every flag has a named owner (`owner_id`) and a due time (`due_at`).
-5. **Impersonal voice.** Aluna is a calm tool, not a friend: no "I", no feelings, no emojis, no memory of personal details, no open chat, no replies to her notes. Every close points outward to real people. All patient text comes from `src/content/phrases.json` (approved lines only).
+5. **Impersonal voice.** Aluna is a calm tool, not a friend: no "I", no feelings, no emojis, no memory of personal details, no open chat, no replies to her notes. Every close points outward to real people. All patient text comes from `src/content/phrases` (approved lines only).
 6. **EPDS item 10** needs a deliberate, confirmed answer, has no default and can't be skipped; a positive answer shows crisis contacts immediately and raises an urgent flag (same-day).
 7. **No streaks, guilt or "you missed…"**. One prompt per check-in + at most one reminder.
 8. **Design:** cream, very neutral, low-blue-light night mode (`src/styles/tokens.css`). Patient UI never uses red/green. 48px+ tap targets. SYNTHETIC label on every screen.

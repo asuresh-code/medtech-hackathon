@@ -45,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await admin.from('invite_codes').update({ used_at: new Date().toISOString() }).eq('code', code)
   await admin.from('audit_log').insert({
     actor_id: userId,
+    woman_id: woman.id,
     event: 'patient.joined',
     entity: 'women',
     entity_id: woman.id,
