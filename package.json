@@ -17,11 +17,13 @@
     "voice": "tsx --env-file=.env.local scripts/generate-voice.ts",
     "db:push": "npx supabase db push",
     "seed:dev": "tsx --env-file=.env.local scripts/dev-seed.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "rls-check": "tsx --env-file=.env.local scripts/rls-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
     "@supabase/supabase-js": "^2.119.0",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
@@ -30,6 +32,7 @@
   "devDependencies": {
     "@playwright/test": "^1.65.1",
     "@types/node": "^24.19.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/web-push": "^3.6.4",

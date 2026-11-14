@@ -10,12 +10,17 @@ Read `CLAUDE.md` first. You own: scaffold, Supabase schema/RLS/auth, PWA, design
 - [x] Patient app: join, home (due/next check-in), check-in flow (one item per screen, voice read-aloud + spoken answers, item 10 confirm, optional note, neutral "your week" close), crisis screen, night mode, demo "+2 days" clock
 - [x] Unit tests: speech matching, safety phrases, EPDS contract, phrase-library voice rules
 - [x] `scripts/dev-seed.ts`, `scripts/rls-check.ts`, `tests/e2e/patient.spec.ts`
-- [ ] Supabase project created, migration applied, `npm run seed:dev` + `npm run rls-check` green
-- [ ] Vercel connected, env vars set, production deploy, PWA installed on a phone
-- [ ] Patient E2E green on Preview URL
+- [x] Supabase project created, migrations applied, `npm run seed:dev` + `npm run rls-check` green
+- [x] Vercel (CLI deploys, project aluna), env vars set, production deploy
+- [x] Patient + clinician E2E green on the production URL
 - [ ] Fold in engagement notes (within CLAUDE.md voice rules)
 - [ ] Esme approves every line in `src/content/phrases` + crisis wording; EPDS licence confirmed
-- [ ] Stretch: Web Push daily prompt (+ max one reminder) via Vercel Cron
+- [x] Web Push: one prompt + max one reminder via /api/heartbeat (Supabase pg_cron every 15 min)
 
 ## Done when
 A seeded patient signs in with a code, finishes a check-in by voice or tap, sees only neutral text, gets crisis contacts (offline too) on a positive item 10 or a disclosure; RLS check passes; production URL installed on a phone.
+
+## Pitch
+- QR codes: `public/qr/` (patient.png, clinician.png, printable sheet at /qr/index.html). Regenerate with `node scripts/make-qr.mjs <DEMO_INVITE_CODE>`.
+- Shared judge code = `DEMO_INVITE_CODE` (Vercel env). Delete it after the event to switch it off.
+- Before presenting: `npm run seed` (resets Priya/Maya/Sarah/Ellie + Alex).

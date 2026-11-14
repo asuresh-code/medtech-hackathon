@@ -48,6 +48,7 @@ export function CheckInFlow() {
   const [groupLabel, setGroupLabel] = useState<string | null>(null)
   const [step, setStep] = useState<Step>({ kind: 'loading' })
   const [selected, setSelected] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [voiceMode, setVoiceMode] = useState(params.get('voice') === '1' && canListen())
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>('idle')
@@ -121,6 +122,11 @@ export function CheckInFlow() {
 
   async function answerItem(index: number, value: ItemValue, via: 'tap' | 'voice') {
     const item = items[index]
+    // Clear the choice immediately and lock the buttons while saving, so a fast tap on the
+    // next screen can't be wiped out by this save finishing.
+    setSelected(null)
+    setHeard(null)
+    setBusy(true)
     try {
       await saveAnswer(item.no, value, via)
       if (isPositiveSelfHarm(item.no, value)) {
@@ -128,11 +134,11 @@ export function CheckInFlow() {
         await finish(null)
         return
       }
-      setSelected(null)
-      setHeard(null)
       setStep(index + 1 < items.length ? { kind: 'item', index: index + 1 } : { kind: 'note' })
     } catch {
       setStep({ kind: 'error', message: "Couldn't save. Check your connection and try again." })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -436,7 +442,7 @@ export function CheckInFlow() {
           <button
             type="button"
             className="p-btn p-btn-primary p-btn-big"
-            disabled={selected === null}
+            disabled={selected === null || busy}
             onClick={() => {
               if (selected === null) return
               const opt = item.options[selected]
@@ -476,6 +482,7 @@ export function CheckInFlow() {
                 role="radio"
                 aria-checked={selected === i}
                 className={`p-option ${selected === i ? 'is-selected' : ''}`}
+                disabled={busy}
                 onClick={() => setSelected(i)}
                 data-testid={`option-${i}`}
               >

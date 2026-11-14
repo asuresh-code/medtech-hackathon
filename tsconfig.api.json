@@ -14,5 +14,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["api", "scripts/**/*.ts", "tests", "playwright.config.ts"]
+  "include": ["api", "scripts/**/*.ts", "tests", "playwright.config.ts", "src/**/*.test.ts", "src/vite-env.d.ts"]
 }

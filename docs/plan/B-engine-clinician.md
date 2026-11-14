@@ -1,5 +1,8 @@
 # Dev B — Engine + Clinician app + AI summary
 
+## Status (14 Nov, end of build)
+Built by Dev A on branch `a/redesign` (Dev B had not started): `src/engine/**` (rules per docs/research/deterministic-rules.md, 47 tests), `api/score.ts`, the silence sweep inside `api/heartbeat.ts` (every 15 min via Supabase pg_cron), `scripts/seed.ts` (`npm run seed` resets the demo), and the clinician app in `src/clinician/**` (queue, brief, decisions, invite QR). **Not built:** `api/summary.ts` (AI summary; needs ANTHROPIC_API_KEY). Don't rebuild the rest; extend it.
+
 Read `CLAUDE.md` and `docs/plan/00-shared.md` first. Stay in your folders.
 
 **You own:** `src/engine/**`, `src/clinician/**` (replace the placeholder), `api/score.ts` (replace Dev A's stub — keep the contract), `api/summary.ts`, `api/numberCheck.ts`, `scripts/seed.ts`, `scripts/simulate.ts`, `scripts/draft-phrases.ts`, `tests/e2e/clinician.spec.ts`.
