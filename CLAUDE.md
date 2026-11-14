@@ -26,7 +26,7 @@ Two developers work in parallel, each with their own Claude session, pushing to 
 |---|---|
 | `src/shared/**` (types, epds, safety) , `supabase/migrations/**`, `package.json` | **Contracts** — change only via a PR the other dev has seen |
 | `src/patient/**`, `src/lib/**`, `src/styles/**`, `src/content/**`, `public/**`, `api/join.ts`, `api/_lib/**`, `scripts/dev-seed.ts`, `scripts/rls-check.ts`, `scripts/make-icons.mjs`, `tests/e2e/patient.spec.ts` | Dev A |
-| `src/engine/**`, `src/clinician/**`, `api/score.ts` (replace the stub), `api/summary.ts`, `api/numberCheck.ts`, `scripts/seed.ts`, `scripts/simulate.ts`, `scripts/draft-phrases.ts`, `tests/e2e/clinician.spec.ts` | Dev B |
+| `src/engine/**`, `src/clinician/**`, `api/score.ts` (replace the stub), `api/sweep.ts`, the `crons` entry in `vercel.json`, `api/summary.ts`, `api/numberCheck.ts`, `scripts/seed.ts`, `scripts/simulate.ts`, `scripts/draft-phrases.ts`, `tests/e2e/clinician.spec.ts` | Dev B |
 
 ## Stack & commands
 Vite + React 19 + TypeScript PWA · Supabase (Postgres, Auth, RLS; London) · Vercel (static + `/api` functions, region lhr1) · Anthropic SDK (`@anthropic-ai/sdk`, model `claude-opus-5-5`) for the clinician summary only.
