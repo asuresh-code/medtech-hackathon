@@ -1,0 +1,443 @@
+/* Aluna clinician app — same cream system, denser, built to answer "who first, and why" in 5 seconds. */
+
+.c-shell {
+  min-height: 100dvh;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+.c-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.c-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.c-brand svg {
+  color: var(--accent);
+}
+.c-brand span {
+  font-family: var(--font);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-left: 4px;
+}
+.c-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.c-who {
+  font-weight: 600;
+  font-size: 15px;
+}
+.c-main {
+  padding-top: 20px;
+  animation: p-rise 240ms ease-out both;
+}
+.c-main h1,
+.c-login h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 32px;
+  letter-spacing: -0.015em;
+  margin: 2px 0 4px;
+}
+.c-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.c-muted {
+  color: var(--muted);
+}
+.c-small {
+  font-size: 14px;
+}
+.c-footnote {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.c-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.c-back {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+.c-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.c-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.c-grid > .c-card {
+  margin-bottom: 14px;
+}
+@media (max-width: 760px) {
+  .c-grid {
+    grid-template-columns: 1fr;
+  }
+  .c-shell {
+    padding: 0 14px 40px;
+  }
+}
+.c-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.c-stack label,
+.c-decide label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.c-stack input,
+.c-decide textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+/* buttons */
+.c-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.c-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.c-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.c-btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.c-btn-secondary-care {
+  border-style: dashed;
+}
+
+/* tags */
+.c-tag {
+  display: inline-block;
+  min-width: 64px;
+  text-align: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.c-tag-urgent {
+  background: var(--urgent);
+}
+.c-tag-review {
+  background: var(--review);
+}
+.c-tag-drift {
+  background: var(--drift);
+}
+.c-counts {
+  display: flex;
+  gap: 14px;
+  font-weight: 700;
+}
+.c-counts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.c-overdue {
+  color: var(--urgent);
+  font-weight: 700;
+}
+
+/* queue table */
+.c-table {
+  padding: 0;
+  overflow: hidden;
+}
+.c-tr {
+  display: grid;
+  grid-template-columns: 96px 1.1fr 2.4fr 1fr 110px;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.c-tr:hover {
+  background: var(--surface-2);
+}
+.c-th {
+  border-top: none;
+  cursor: default;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.c-tr small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .c-tr {
+    grid-template-columns: 80px 1fr;
+  }
+  .c-tr > span:nth-child(n + 3) {
+    grid-column: 2;
+  }
+  .c-th {
+    display: none;
+  }
+}
+.c-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.c-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin: 2px 4px 2px 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+}
+.c-chip small {
+  color: var(--muted);
+}
+.c-chip-missed {
+  outline: 1px dashed var(--muted);
+}
+
+/* brief */
+.c-flag {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.c-flag:first-of-type {
+  border-top: none;
+}
+.c-flag-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.c-flag small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+.c-source {
+  margin-top: 4px;
+  font-style: italic;
+}
+.c-items {
+  display: flex;
+  flex-direction: column;
+}
+.c-item {
+  display: grid;
+  grid-template-columns: 28px 1.6fr 1fr 28px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+}
+.c-item:first-child {
+  border-top: none;
+}
+.c-item-no {
+  color: var(--muted);
+  font-weight: 700;
+}
+.c-item-a {
+  font-weight: 600;
+}
+.c-item-v {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.c-item-alert {
+  background: color-mix(in srgb, var(--urgent) 10%, transparent);
+  border-radius: 8px;
+}
+.c-dots {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0;
+}
+.c-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+}
+.c-dot.done {
+  background: var(--accent);
+}
+.c-dot.pending {
+  border-style: dotted;
+}
+.c-quote {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent-soft);
+  font-family: var(--font-display);
+  font-style: italic;
+}
+.c-quote small {
+  display: block;
+  font-family: var(--font);
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+}
+.c-decisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.c-saved {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.c-invite {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.c-invite img {
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px;
+}
+.c-code {
+  font-family: var(--font-display);
+  font-size: 34px;
+  letter-spacing: 0.25em;
+  margin: 0;
+}
+
+/* sparkline */
+.c-spark {
+  width: 100%;
+  height: auto;
+}
+.c-spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.c-spark-dot {
+  fill: var(--accent);
+}
+.c-spark-cut {
+  stroke: var(--review);
+  stroke-dasharray: 4 4;
+}
+.c-spark-base {
+  stroke: var(--muted);
+  stroke-dasharray: 2 4;
+}
+.c-spark-label {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+/* login */
+.c-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.c-login-card {
+  width: min(420px, 100%);
+}
+.c-demo-logins {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.c-error {
+  color: var(--urgent);
+  margin: 0;
+}
