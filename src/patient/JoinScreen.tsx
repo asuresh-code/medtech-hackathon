@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { JoinRequest, JoinResponse } from '../shared/types'
 import { line } from './copy'
+import { MoonMark } from './Icons'
 import { PatientLayout } from './PatientLayout'
 
 // Setup happens at an in-person first session: the clinician shows a QR code / 6-digit code.
@@ -29,7 +30,7 @@ export function JoinScreen() {
       const { token_hash } = (await res.json()) as JoinResponse
       const { error: otpErr } = await supabase.auth.verifyOtp({ token_hash, type: 'magiclink' })
       if (otpErr) throw otpErr
-      navigate('/', { replace: true })
+      navigate('/welcome', { replace: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not sign in.')
     } finally {
@@ -53,10 +54,11 @@ export function JoinScreen() {
   }
 
   return (
-    <PatientLayout>
-      <h1>Welcome to Aluna</h1>
-      <p>{line('aboutAluna')}</p>
-      <form onSubmit={onSubmit} className="p-join">
+    <PatientLayout tabs={false}>
+      <MoonMark size={44} style={{ color: 'var(--accent)' }} />
+      <h1 className="p-title">Welcome to Aluna</h1>
+      <p className="p-lead">{line('aboutAluna')}</p>
+      <form onSubmit={onSubmit} className="p-card p-stack" style={{ margin: '20px 0' }}>
         <label htmlFor="code">Your 6-digit code</label>
         <input
           id="code"
@@ -74,7 +76,7 @@ export function JoinScreen() {
             {error}
           </p>
         )}
-        <button type="submit" className="p-btn p-btn-primary" disabled={busy}>
+        <button type="submit" className="p-btn p-btn-primary p-btn-big" disabled={busy}>
           {busy ? 'Signing in…' : 'Continue'}
         </button>
       </form>

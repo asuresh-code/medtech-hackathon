@@ -24,6 +24,8 @@ async function freshInvite(items: number[]): Promise<string> {
 
 async function signIn(page: Page, code: string) {
   await page.goto(`/join?code=${code}`)
+  await expect(page.getByTestId('welcome-next')).toBeVisible() // first-run onboarding
+  await page.goto('/')
   await expect(page.getByTestId('home-status')).toBeVisible()
 }
 
@@ -31,7 +33,7 @@ test('code sign-in → full check-in by tap → neutral close, no verdicts anywh
   await signIn(page, await freshInvite([1, 2, 3]))
   await assertNoVerdicts(page)
   await page.getByTestId('start-checkin').click()
-  await page.getByRole('button', { name: 'Start' }).click()
+  await page.getByTestId('begin').click()
 
   for (let i = 0; i < 3; i++) {
     await expect(page.getByTestId('next')).toBeDisabled()
@@ -49,7 +51,7 @@ test('code sign-in → full check-in by tap → neutral close, no verdicts anywh
 test('item 10: no default, needs deliberate confirm, positive answer shows crisis contacts', async ({ page }) => {
   await signIn(page, await freshInvite([10]))
   await page.getByTestId('start-checkin').click()
-  await page.getByRole('button', { name: 'Start' }).click()
+  await page.getByTestId('begin').click()
 
   await expect(page.getByTestId('next')).toBeDisabled() // nothing pre-selected
   await page.getByTestId('option-2').click() // "Hardly ever"
@@ -69,7 +71,7 @@ test('item 10: no default, needs deliberate confirm, positive answer shows crisi
 test('a disclosure in the note shows crisis contacts', async ({ page }) => {
   await signIn(page, await freshInvite([4]))
   await page.getByTestId('start-checkin').click()
-  await page.getByRole('button', { name: 'Start' }).click()
+  await page.getByTestId('begin').click()
   await page.getByTestId('option-0').click()
   await page.getByTestId('next').click()
   await page.getByTestId('note').fill("Honestly they'd be better off without me")

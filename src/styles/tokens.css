@@ -1,59 +1,76 @@
 /* Aluna design tokens — cream, very neutral, low blue light at night.
    Patient UI must never use red/green or any colour that hints at a result.
-   --urgent is for the clinician app's urgent tag ONLY. */
+   --urgent / --review / --drift are for the clinician app ONLY. */
 
 :root {
   --bg: #f7f3ec;
-  --surface: #fffdf8;
-  --surface-2: #f1ebe1;
-  --ink: #2b2a27;
-  --muted: #6f695f;
-  --line: #e6dfd3;
-  --accent: #8c7b65;
-  --accent-ink: #fffdf8;
+  --bg-glow: #fbf6ee;
+  --surface: #fffdf9;
+  --surface-2: #f2ece2;
+  --ink: #2b2925;
+  --ink-soft: #4a463f;
+  --muted: #7a7367;
+  --line: #e7e0d4;
+  --accent: #7a6a55; /* warm taupe, 5:1 on cream */
+  --accent-soft: #e9e1d4;
+  --accent-ink: #fffdf9;
   --focus: #5e5243;
   --urgent: #9a4a3c;
   --review: #a07a3c;
   --drift: #6f7a83;
 
   --font: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --radius: 14px;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --radius: 18px;
+  --radius-sm: 12px;
   --tap: 56px; /* min tap target; brief asks for ≥48px */
-  --space: 16px;
+  --shadow: 0 1px 2px rgba(60, 48, 32, 0.05), 0 10px 30px rgba(60, 48, 32, 0.07);
+  --shadow-sm: 0 1px 2px rgba(60, 48, 32, 0.06);
+  --tabbar: 68px;
   color-scheme: light;
 }
 
 /* Night mode: warm, dim, low blue light (for use after settling the baby). */
 :root[data-theme='night'] {
-  --bg: #1c1a17;
-  --surface: #24211d;
-  --surface-2: #2c2823;
-  --ink: #eadfcc;
+  --bg: #1b1916;
+  --bg-glow: #221f1b;
+  --surface: #25221e;
+  --surface-2: #2e2a25;
+  --ink: #ece2d0;
+  --ink-soft: #d6cab6;
   --muted: #a39783;
-  --line: #36312a;
-  --accent: #c2a882;
-  --accent-ink: #1c1a17;
+  --line: #3a352e;
+  --accent: #c9b08a;
+  --accent-soft: #3a332a;
+  --accent-ink: #1b1916;
   --focus: #e3c9a0;
   --urgent: #d08a74;
   --review: #d3b07a;
   --drift: #9aa3aa;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='day']) {
-    --bg: #1c1a17;
-    --surface: #24211d;
-    --surface-2: #2c2823;
-    --ink: #eadfcc;
+    --bg: #1b1916;
+    --bg-glow: #221f1b;
+    --surface: #25221e;
+    --surface-2: #2e2a25;
+    --ink: #ece2d0;
+    --ink-soft: #d6cab6;
     --muted: #a39783;
-    --line: #36312a;
-    --accent: #c2a882;
-    --accent-ink: #1c1a17;
+    --line: #3a352e;
+    --accent: #c9b08a;
+    --accent-soft: #3a332a;
+    --accent-ink: #1b1916;
     --focus: #e3c9a0;
     --urgent: #d08a74;
     --review: #d3b07a;
     --drift: #9aa3aa;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.25);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }

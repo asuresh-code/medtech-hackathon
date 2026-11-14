@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import phrases from '../content/phrases.json'
+import phrases from '../content/phrases'
 import { fill, friendlyWhen, pick } from './copy'
 
 // Guard the impersonal-voice + no-verdict rules on every approved patient-facing line.

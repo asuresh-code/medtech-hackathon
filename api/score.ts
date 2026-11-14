@@ -32,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   await admin.from('audit_log').insert({
     actor_id: uid,
+    woman_id: checkin.woman_id,
     event: 'checkin.completed',
     entity: 'checkins',
     entity_id: checkin.id,
