@@ -1,6 +1,6 @@
 // Patient app E2E (Dev A). Needs: .env.local loaded, `npm run seed:dev` run once, app running.
 import { expect, test, type Page } from '@playwright/test'
-import { adminClient } from '../../api/_lib/supabaseAdmin'
+import { adminClient } from '../../api/_lib/supabaseAdmin.js'
 
 const admin = adminClient()
 

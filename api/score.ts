@@ -6,7 +6,7 @@
 // in src/shared/types.ts. The response must NEVER include a flag, score or level (patient-safe).
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type { ScoreResponse } from '../src/shared/types'
-import { adminClient, callerId } from './_lib/supabaseAdmin'
+import { adminClient, callerId } from './_lib/supabaseAdmin.js'
 
 // Stub schedule: 3 rotating groups every 2 days → all 10 items (incl. item 10) within ~6 days.
 const GROUPS = [

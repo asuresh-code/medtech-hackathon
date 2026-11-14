@@ -19,6 +19,7 @@ Two developers work in parallel, each with their own Claude session, pushing to 
 7. **No streaks, guilt or "you missed…"**. One prompt per check-in + at most one reminder.
 8. **Design:** cream, very neutral, low-blue-light night mode (`src/styles/tokens.css`). Patient UI never uses red/green. 48px+ tap targets. SYNTHETIC label on every screen.
 9. Never commit secrets. `.env.local` is git-ignored.
+10. **Vercel functions run as native ES modules.** In `api/**` and anything it imports (`src/shared/**`, `src/engine/**`), relative imports must end in `.js` (e.g. `import { evaluate } from "../src/engine/rules.js"`) and must not import `.json` files — use `.ts` modules for config. Otherwise the function crashes with ERR_MODULE_NOT_FOUND.
 
 ## Ownership (stay in your folders)
 | Path | Owner |
@@ -45,5 +46,5 @@ npm run e2e        # Playwright (needs app running + seed)
 - DB schema + RLS: `supabase/migrations/20261114090000_init.sql`. Patients read their own data only via `patient_me` (view, no scores), `checkins`; they can INSERT `item_answers` but never read them; no access to `flags`, `decisions`, `summaries`, `audit_log`, `attendance`.
 - `POST /api/join {code}` → `{token_hash}` (Dev A). Client then calls `supabase.auth.verifyOtp({ token_hash, type: 'magiclink' })`.
 - `POST /api/score {checkin_id, now?}` → `{ok, next_checkin}` (Dev B; Dev A's stub exists). Called by the patient app after every check-in with the patient's bearer token. **Response must never contain a flag/score.**
-- Types: `src/shared/types.ts`. EPDS text: `src/shared/epds.ts` (verbatim, cite Cox et al. 1987). Safety phrases: `src/shared/safety.ts` + `safety-phrases.json`.
+- Types: `src/shared/types.ts`. EPDS text: `src/shared/epds.ts` (verbatim, cite Cox et al. 1987). Safety phrases: `src/shared/safety.ts` + `safety-phrases.ts`.
 - Demo clock: the patient app passes `now` (ISO) to `/api/score`; the "+2 days" demo control shifts it.

@@ -3,7 +3,7 @@
 // and returns a magic-link token hash; the client calls supabase.auth.verifyOtp() to sign in.
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type { JoinResponse } from '../src/shared/types'
-import { adminClient, patientSignInToken } from './_lib/supabaseAdmin'
+import { adminClient, patientSignInToken } from './_lib/supabaseAdmin.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })

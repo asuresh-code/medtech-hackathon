@@ -3,7 +3,7 @@
 Read `CLAUDE.md` and `docs/plan/00-shared.md` first. Stay in your folders.
 
 **You own:** `src/engine/**`, `src/clinician/**` (replace the placeholder), `api/score.ts` (replace Dev A's stub — keep the contract), `api/summary.ts`, `api/numberCheck.ts`, `scripts/seed.ts`, `scripts/simulate.ts`, `scripts/draft-phrases.ts`, `tests/e2e/clinician.spec.ts`.
-**Read-only contracts:** `src/shared/*` (you own the *content* of `safety-phrases.json`), `supabase/migrations/*`, `package.json` — propose changes via PR.
+**Read-only contracts:** `src/shared/*` (you own the *content* of `safety-phrases.ts`), `supabase/migrations/*`, `package.json` — propose changes via PR.
 
 ## Engine (`src/engine/`) — deterministic, pure functions, versioned config
 - `window.ts`: rolling 7-day window — latest answer per EPDS item within 7 days of `now`; partial total; complete-window total (all 10 present); baseline = her first complete window.
@@ -17,7 +17,7 @@ Read `CLAUDE.md` and `docs/plan/00-shared.md` first. Stay in your folders.
 
   Each result: `rule_id`, one-line human `reason` (e.g. "D3: 3 check-ins missed in a row"), `rule_version`, `owner_id`, `due_at`.
 - `schedule.ts`: next check-in every 2–3 days at `usual_hour` (median hour of her last 5 completions, default 20); 3–4 items per check-in so all 10 land within each 7-day window **including item 10**; at most one reminder.
-- Use `src/shared/safety.ts` for the phrase check (extend `safety-phrases.json` to ~30 phrasings incl. indirect ones).
+- Use `src/shared/safety.ts` for the phrase check (extend `safety-phrases.ts` to ~30 phrasings incl. indirect ones).
 
 ## API
 - **`POST /api/score {checkin_id, now?}`** — replace the stub in `api/score.ts`. Keep: bearer-token auth via `callerId`, ownership check, `checkin.completed` audit. Add: load answers/check-ins/attendance/baseline with `adminClient()`, run `evaluate`, insert `flags` (avoid duplicates for the same open rule) + `audit_log` (`flag.created`), set `baseline_total` when the first complete window appears, schedule next check-in with `schedule.ts`. **Response stays `{ok, next_checkin}` — never a flag/score.**
