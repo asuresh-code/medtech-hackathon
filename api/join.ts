@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Pitch-only shared code: reusable, never expires, signs everyone in as the same synthetic
   // patient. Enabled only when DEMO_INVITE_CODE is set; unset it after the event to switch it off.
-  const demoCode = process.env.DEMO_INVITE_CODE
+  const demoCode = process.env.DEMO_INVITE_CODE?.trim()
   const isDemo = Boolean(demoCode && /^\d{6}$/.test(demoCode) && code === demoCode)
 
   let womanId: string
